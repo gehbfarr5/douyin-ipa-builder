@@ -52,7 +52,7 @@ jobs:
 
       - name: Inject tweak into IPA
         run: |
-          cyan -i douyin.ipa -o DouyinPlus.ipa -w tweak.deb -n "${{ inputs.app_name }}"
+          cyan -i douyin.ipa -o DouyinPlus.ipa -f tweak.deb -n "${{ inputs.app_name }}"
 
       - name: Upload to GitHub Releases
         uses: softprops/action-gh-release@v3
