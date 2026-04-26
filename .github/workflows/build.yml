@@ -1,0 +1,67 @@
+name: Build Douyin IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      ipa_url:
+        description: "URL to the decrypted IPA file"
+        required: true
+        type: string
+      deb_url:
+        description: "URL to the deb file"
+        required: true
+        type: string
+      app_name:
+        description: "App Name"
+        default: "Douyin"
+        required: true
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build IPA
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download IPA
+        run: |
+          wget "${{ inputs.ipa_url }}" --no-verbose -O douyin.ipa
+          file_type=$(file --mime-type -b douyin.ipa)
+          if [[ "$file_type" != "application/x-ios-app" && "$file_type" != "application/zip" ]]; then
+            echo "::error::Invalid IPA file. Detected type: $file_type"
+            exit 1
+          fi
+
+      - name: Download deb
+        run: |
+          wget "${{ inputs.deb_url }}" --no-verbose -O tweak.deb
+          file_type=$(file --mime-type -b tweak.deb)
+          if [[ "$file_type" != "application/x-debian-package" && "$file_type" != "application/vnd.debian.binary-package" ]]; then
+            echo "::error::Invalid deb file. Detected type: $file_type"
+            exit 1
+          fi
+
+      - name: Install cyan
+        run: pipx install --force https://github.com/asdfzxcvbn/pyzule-rw/archive/main.zip
+
+      - name: Inject tweak into IPA
+        run: |
+          cyan -i douyin.ipa -o DouyinPlus.ipa -w tweak.deb -n "${{ inputs.app_name }}"
+
+      - name: Upload to GitHub Releases
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: douyin-${{ github.run_number }}
+          name: Douyin Plus (${{ github.run_number }})
+          files: DouyinPlus.ipa
+          draft: true
+
+      - name: Output Release URL
+        run: |
+          echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases"
